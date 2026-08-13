@@ -1,9 +1,10 @@
-const CACHE = 'tanguang-v4';
+const CACHE = 'tanguang-v5';
 const ASSETS = [
   './',
   './index.html',
   './styles.css',
   './data-tools.css',
+  './swipe.css',
   './app.js',
   './manifest.webmanifest',
   './icons/icon.svg',

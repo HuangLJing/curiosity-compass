@@ -110,22 +110,26 @@ function questionCard(item) {
   if (item.state === 'shortlist') actions = `<button class="emphasis" data-action="contract" data-id="${item.id}">开始探索</button><button data-action="unshortlist" data-id="${item.id}">放回 Inbox</button>`;
   if (item.state === 'active') actions = `<button class="emphasis" data-view="today">回到当前探索</button>`;
   if (item.state === 'project') actions = `<button data-action="shortlist" data-id="${item.id}">作为本周候选</button>`;
-  return `<article class="card"><div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${stateLabel(item.state)}</span></div><div class="card-meta">${esc(item.tag || '其他')}${item.next ? ` · 下一步：${esc(item.next)}` : ''}</div><div class="card-actions">${actions}<button class="danger" data-action="delete" data-id="${item.id}">删除</button></div></article>`;
+  return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${stateLabel(item.state)}</span></div><div class="card-meta">${esc(item.tag || '其他')}${item.next ? ` · 下一步：${esc(item.next)}` : ''}</div>${actions ? `<div class="card-actions">${actions}</div>` : ''}`);
 }
 
 function lifeCard(item) {
   const time = ({ 10: '10 分钟', 60: '30–60 分钟', half: '半天以上' })[item.time] || '时间不限';
   const energy = ({ low: '低能量', mid: '中等能量', high: '高能量' })[item.energy] || '';
-  return `<article class="card"><div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${esc(item.category || '生活')}</span></div><div class="card-meta">${time} · ${energy}</div><div class="card-actions"><button class="emphasis" data-action="life-done" data-id="${item.id}">我体验过了</button><button class="danger" data-action="delete" data-id="${item.id}">删除</button></div></article>`;
+  return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${esc(item.category || '生活')}</span></div><div class="card-meta">${time} · ${energy}</div><div class="card-actions"><button class="emphasis" data-action="life-done" data-id="${item.id}">我体验过了</button></div>`);
+}
+
+function swipeCard(item, content) {
+  return `<div class="swipe-row" data-swipe-id="${item.id}"><div class="swipe-actions"><button class="swipe-edit" data-action="edit-item" data-id="${item.id}">编辑</button><button class="swipe-delete" data-action="delete" data-id="${item.id}">删除</button></div><article class="card swipe-content">${content}</article></div>`;
 }
 
 function completedCard(item) {
   if (item.kind === 'life') {
     const again = ({ yes: '愿意再次体验', no: '不打算再次体验', maybe: '也许会再次体验' })[item.again] || '';
     const reflections = (item.reflections || []).map(entry => `<div class="completed-memory"><span class="card-meta">${esc(entry.date || '')} · 新感悟</span><br>${esc(entry.text)}</div>`).join('');
-    return `<article class="card"><div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${esc(item.category || '生活')}</span></div><div class="card-meta">${esc(item.completedAt || '')}${item.place ? ` · ${esc(item.place)}` : ''}${again ? ` · ${again}` : ''}</div>${item.rating ? `<div class="stars">${'★'.repeat(Number(item.rating))}${'☆'.repeat(5 - Number(item.rating))}</div>` : ''}<div class="completed-memory">${esc(item.memory || '已完成这次体验')}</div>${reflections}<div class="card-actions"><button class="emphasis" data-action="edit-life-complete" data-id="${item.id}">编辑 / 新增感悟</button></div></article>`;
+    return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${esc(item.category || '生活')}</span></div><div class="card-meta">${esc(item.completedAt || '')}${item.place ? ` · ${esc(item.place)}` : ''}${again ? ` · ${again}` : ''}</div>${item.rating ? `<div class="stars">${'★'.repeat(Number(item.rating))}${'☆'.repeat(5 - Number(item.rating))}</div>` : ''}<div class="completed-memory">${esc(item.memory || '已完成这次体验')}</div>${reflections}`);
   }
-  return `<article class="card"><div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${stateLabel(item.state)}</span></div><div class="card-meta">${esc(item.tag || '其他')}${item.next ? ` · 下一步：${esc(item.next)}` : ''}</div>${item.result ? `<div class="completed-memory">${esc(item.result)}</div>` : ''}</article>`;
+  return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${stateLabel(item.state)}</span></div><div class="card-meta">${esc(item.tag || '其他')}${item.next ? ` · 下一步：${esc(item.next)}` : ''}</div>${item.result ? `<div class="completed-memory">${esc(item.result)}</div>` : ''}`);
 }
 
 function renderReviews() {
@@ -234,6 +238,65 @@ function openLifeComplete(id) {
   openModal('lifeCompleteModal');
 }
 
+function openItemEdit(id) {
+  const item = data.items.find(x => x.id === Number(id));
+  if (!item) return;
+  if (item.kind === 'life' && item.state === 'done') return openLifeComplete(id);
+  $('#itemEditForm').reset();
+  $('#itemEditId').value = item.id;
+  $('#itemEditTitle').value = item.title || '';
+  const isLife = item.kind === 'life';
+  $('#itemEditQuestionFields').hidden = isLife;
+  $('#itemEditLifeFields').hidden = !isLife;
+  $('#itemEditTitleLabel').textContent = isLife ? '我想体验什么？' : '我想探索的问题';
+  if (isLife) {
+    $('#itemEditCategory').value = item.category || '其他';
+    $('#itemEditTime').value = item.time || '10';
+    $('#itemEditEnergy').value = item.energy || 'low';
+  } else {
+    const completed = ['understood', 'project'].includes(item.state);
+    $('#itemEditTag').value = item.tag || '其他';
+    $('#itemEditResultField').hidden = !completed;
+    $('#itemEditNextField').hidden = !completed;
+    $('#itemEditResult').value = item.result || '';
+    $('#itemEditNext').value = item.next || '';
+  }
+  openModal('itemEditModal');
+}
+
+function bindSwipeRows() {
+  $$('.swipe-row').forEach(row => {
+    const content = row.querySelector('.swipe-content');
+    let startX = 0;
+    let deltaX = 0;
+    const settle = () => {
+      content.style.transform = '';
+      if (deltaX < -35) {
+        $$('.swipe-row.open').forEach(other => { if (other !== row) other.classList.remove('open'); });
+        row.classList.add('open');
+      } else if (deltaX > 35) row.classList.remove('open');
+    };
+    const move = x => {
+      deltaX = x - startX;
+      const base = row.classList.contains('open') ? -144 : 0;
+      content.style.transform = `translateX(${Math.max(-144, Math.min(0, base + deltaX))}px)`;
+    };
+    content.onpointerdown = event => { startX = event.clientX; deltaX = 0; content.setPointerCapture(event.pointerId); };
+    content.onpointermove = event => {
+      if (!content.hasPointerCapture(event.pointerId)) return;
+      move(event.clientX);
+    };
+    content.onpointerup = event => {
+      if (content.hasPointerCapture(event.pointerId)) content.releasePointerCapture(event.pointerId);
+      settle();
+    };
+    content.onpointercancel = settle;
+    content.ontouchstart = event => { startX = event.touches[0].clientX; deltaX = 0; };
+    content.ontouchmove = event => move(event.touches[0].clientX);
+    content.ontouchend = settle;
+  });
+}
+
 function downloadFile(name, content, type) {
   const url = URL.createObjectURL(new Blob([content], { type }));
   const link = document.createElement('a');
@@ -332,8 +395,10 @@ function bindDynamic() {
   $$('[data-action="finish"]').forEach(button => { button.onclick = () => { finishTarget = Number(button.dataset.id); $('#finishForm').reset(); $('#parkBranches').checked = true; openModal('finishModal'); }; });
   $$('[data-action="add-branch"]').forEach(button => { button.onclick = () => { const input = $('#branchInput'); const value = input.value.trim(); if (!value) return; data.items.find(x => x.id === Number(button.dataset.id)).branches.push(value); save('已停放，不切换当前探索'); }; });
   $$('[data-action="delete"]').forEach(button => { button.onclick = () => { data.items = data.items.filter(x => x.id !== Number(button.dataset.id)); save('已删除'); }; });
+  $$('[data-action="edit-item"]').forEach(button => { button.onclick = () => openItemEdit(button.dataset.id); });
   $$('[data-action="life-done"]').forEach(button => { button.onclick = () => openLifeComplete(button.dataset.id); });
   $$('[data-action="edit-life-complete"]').forEach(button => { button.onclick = () => openLifeComplete(button.dataset.id); });
+  bindSwipeRows();
 }
 
 document.addEventListener('click', event => {
@@ -386,6 +451,26 @@ $('#planForm').addEventListener('submit', event => {
   data.plan.monthly = $('#monthlyInput').value.trim();
   closeModals();
   save('方向已更新');
+});
+
+$('#itemEditForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const item = data.items.find(x => x.id === Number($('#itemEditId').value));
+  if (!item) return;
+  item.title = $('#itemEditTitle').value.trim();
+  if (item.kind === 'life') {
+    item.category = $('#itemEditCategory').value;
+    item.time = $('#itemEditTime').value;
+    item.energy = $('#itemEditEnergy').value;
+  } else {
+    item.tag = $('#itemEditTag').value;
+    if (['understood', 'project'].includes(item.state)) {
+      item.result = $('#itemEditResult').value.trim();
+      item.next = $('#itemEditNext').value.trim();
+    }
+  }
+  item.updatedAt = new Date().toISOString();
+  closeModals(); save('已保存修改');
 });
 
 $('#lifeCompleteForm').addEventListener('submit', event => {
