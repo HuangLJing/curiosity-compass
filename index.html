@@ -9,24 +9,132 @@
   <meta name="apple-mobile-web-app-title" content="探光">
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-512.png">
-  <title>探光 · 好奇心探索</title>
-  <style>
-    :root{--ink:#263126;--muted:#6d776b;--paper:#f7f5ed;--card:#fffdf7;--leaf:#5d6f52;--leaf2:#dfe7d8;--sun:#e7a95d;--line:#e6e3d8;--shadow:0 10px 28px #3d4d3920}*{box-sizing:border-box}html{background:var(--paper)}body{margin:0;color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","PingFang SC",sans-serif;background:radial-gradient(circle at 90% 0,#edf1df 0,transparent 35%),var(--paper);min-height:100vh}.shell{max-width:680px;margin:auto;padding:calc(18px + env(safe-area-inset-top)) 18px calc(92px + env(safe-area-inset-bottom))}header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px}.brand{font-family:Georgia,"Songti SC",serif;font-size:29px;font-weight:700;letter-spacing:2px}.date{font-size:13px;color:var(--muted)}.focus{padding:22px;border-radius:24px;color:white;background:linear-gradient(135deg,#63765a,#45573f);box-shadow:var(--shadow);position:relative;overflow:hidden}.focus:after{content:"✦";position:absolute;right:18px;top:10px;font-size:56px;color:#ffffff18}.eyebrow{font-size:12px;letter-spacing:1.5px;opacity:.8}.focus h1{font:700 23px/1.35 Georgia,"Songti SC",serif;margin:8px 0 4px}.focus p{font-size:14px;opacity:.82;margin:0}.section-title{display:flex;align-items:center;justify-content:space-between;margin:26px 2px 12px}.section-title h2{font-size:18px;margin:0}.section-title button,.linkbtn{border:0;background:transparent;color:var(--leaf);font-weight:600}.quick{display:flex;gap:10px}.quick input{min-width:0;flex:1;border:1px solid var(--line);border-radius:16px;background:var(--card);padding:14px;font-size:16px;outline:none}.quick button,.primary{border:0;border-radius:16px;background:var(--leaf);color:white;font-weight:700;padding:0 18px}.filters{display:flex;gap:8px;overflow:auto;padding:2px 0 10px;scrollbar-width:none}.chip{white-space:nowrap;border:1px solid var(--line);border-radius:999px;background:var(--card);padding:8px 12px;font-size:13px;color:var(--muted)}.chip.active{background:var(--leaf2);border-color:#bac9b2;color:#34442f;font-weight:700}.cards{display:grid;gap:11px}.card{background:var(--card);border:1px solid var(--line);border-radius:19px;padding:16px;box-shadow:0 3px 12px #35402e0a}.card-top{display:flex;justify-content:space-between;gap:10px}.question{font-weight:700;line-height:1.45}.tag{font-size:12px;color:var(--leaf);background:var(--leaf2);border-radius:999px;padding:4px 9px;height:max-content}.meta{display:flex;align-items:center;justify-content:space-between;margin-top:13px}.status{border:0;background:#f0eee5;border-radius:10px;padding:7px 9px;color:#586054}.star{border:0;background:transparent;font-size:21px;color:#c5c4bb}.star.on{color:var(--sun)}.empty{text-align:center;color:var(--muted);padding:28px 10px}.review{display:grid;gap:10px}.review textarea{width:100%;border:1px solid var(--line);border-radius:16px;background:var(--card);padding:14px;font:inherit;min-height:84px;resize:vertical}.review-actions{display:flex;justify-content:flex-end}.nav{position:fixed;bottom:0;left:0;right:0;background:#fffdf5eF;backdrop-filter:blur(18px);border-top:1px solid var(--line);padding:9px 16px calc(9px + env(safe-area-inset-bottom));display:flex;justify-content:space-around}.nav button{border:0;background:transparent;color:var(--muted);padding:7px 12px}.nav button.active{color:var(--leaf);font-weight:700}.modal{position:fixed;inset:0;background:#1f291f66;display:none;align-items:flex-end;z-index:9}.modal.open{display:flex}.sheet{background:var(--paper);width:100%;max-width:680px;margin:auto;border-radius:26px 26px 0 0;padding:22px 18px calc(24px + env(safe-area-inset-bottom))}.sheet h2{margin:0 0 16px}.field{display:grid;gap:6px;margin:12px 0}.field label{font-size:13px;color:var(--muted)}.field input,.field select,.field textarea{border:1px solid var(--line);border-radius:13px;padding:12px;background:white;font:inherit}.row{display:flex;gap:10px}.row>*{flex:1}.sheet-actions{display:flex;gap:10px;margin-top:18px}.sheet-actions button{min-height:46px;flex:1;border-radius:14px;border:0;font-weight:700}.cancel{background:#e8e6dd;color:var(--ink)}@media(min-width:700px){.nav{max-width:680px;left:50%;transform:translateX(-50%);border:1px solid var(--line);border-bottom:0;border-radius:20px 20px 0 0}}
-  </style>
+  <link rel="stylesheet" href="styles.css">
+  <title>探光 · 好奇心与生活灵感</title>
 </head>
-<body><main class="shell">
-  <header><div class="brand">探光</div><div class="date" id="today"></div></header>
-  <section class="focus" id="focusBox"><div class="eyebrow">今日探索重心</div><h1 id="focusText">从一个让你“哇”的问题开始</h1><p>点亮一张卡片，它就会来到这里。</p></section>
-  <section><div class="section-title"><h2>Curiosity Inbox</h2><button onclick="openModal()">完整记录 ＋</button></div><div class="quick"><input id="quickInput" placeholder="刚刚冒出了什么问题？"><button onclick="quickAdd()">收下</button></div></section>
-  <section><div class="section-title"><h2>探索地图</h2><button onclick="clearFilter()">全部</button></div><div class="filters" id="filters"></div><div class="cards" id="cards"></div></section>
-  <section id="reviewSection"><div class="section-title"><h2>今天，带走一束光</h2></div><div class="review"><textarea id="review" placeholder="我发现了什么？下一步最小行动是什么？"></textarea><div class="review-actions"><button class="primary" onclick="saveReview()">保存今日复盘</button></div></div></section>
-</main>
-<nav class="nav"><button class="active" onclick="scrollTo(0,0)">✦ 今日</button><button onclick="document.querySelector('.cards').scrollIntoView({behavior:'smooth'})">⌁ 探索</button><button onclick="document.querySelector('#reviewSection').scrollIntoView({behavior:'smooth'})">◌ 复盘</button></nav>
-<div class="modal" id="modal" onclick="if(event.target===this)closeModal()"><form class="sheet" onsubmit="addItem(event)"><h2>收下一颗好奇</h2><div class="field"><label>我想探索的问题</label><textarea id="q" required placeholder="为什么……？如果……会怎样？"></textarea></div><div class="row"><div class="field"><label>领域</label><select id="tag"><option>工作</option><option>科普</option><option>技术</option><option>生活</option><option>其他</option></select></div><div class="field"><label>状态</label><select id="status"><option>想探索</option><option>进行中</option><option>已理解</option><option>转化项目</option></select></div></div><div class="field"><label>下一步（可选）</label><input id="next" placeholder="读一篇文章 / 问一个人…"></div><div class="sheet-actions"><button type="button" class="cancel" onclick="closeModal()">取消</button><button class="primary">保存</button></div></form></div>
-<script>
-const KEY='tanguang-v1', STATES=['想探索','进行中','已理解','转化项目'], TAGS=['工作','科普','技术','生活','其他'];let filter='全部';
-let data=JSON.parse(localStorage.getItem(KEY)||'null')||{items:[{id:Date.now(),q:'什么问题会让我今天真正想追下去？',tag:'工作',status:'想探索',next:'写下三个候选问题',focus:true}],reviews:{}};
-const day=()=>new Date().toISOString().slice(0,10);const save=()=>{localStorage.setItem(KEY,JSON.stringify(data));render()};
-function render(){document.querySelector('#today').textContent=new Intl.DateTimeFormat('zh-CN',{month:'long',day:'numeric',weekday:'short'}).format(new Date());let f=data.items.find(x=>x.focus);document.querySelector('#focusText').textContent=f?f.q:'从一个让你“哇”的问题开始';document.querySelector('#filters').innerHTML=['全部',...TAGS].map(x=>`<button class="chip ${filter===x?'active':''}" onclick="setFilter('${x}')">${x}</button>`).join('');let list=data.items.filter(x=>filter==='全部'||x.tag===filter);document.querySelector('#cards').innerHTML=list.length?list.map(x=>`<article class="card"><div class="card-top"><div class="question">${esc(x.q)}</div><span class="tag">${x.tag}</span></div>${x.next?`<div style="color:var(--muted);font-size:13px;margin-top:8px">下一步：${esc(x.next)}</div>`:''}<div class="meta"><select class="status" onchange="move(${x.id},this.value)">${STATES.map(s=>`<option ${s===x.status?'selected':''}>${s}</option>`).join('')}</select><button class="star ${x.focus?'on':''}" title="设为今日重心" onclick="focusItem(${x.id})">${x.focus?'★':'☆'}</button></div></article>`).join(''):'<div class="empty">这里还没有问题。先收下一颗好奇吧。</div>';document.querySelector('#review').value=data.reviews[day()]||''}
-function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}function openModal(seed=''){document.querySelector('#q').value=seed;document.querySelector('#modal').classList.add('open');setTimeout(()=>document.querySelector('#q').focus(),100)}function closeModal(){document.querySelector('#modal').classList.remove('open')}function quickAdd(){let v=document.querySelector('#quickInput').value.trim();if(!v)return;openModal(v);document.querySelector('#quickInput').value=''}function addItem(e){e.preventDefault();data.items.unshift({id:Date.now(),q:q.value.trim(),tag:tag.value,status:status.value,next:next.value.trim(),focus:false});closeModal();e.target.reset();save()}function move(id,status){data.items.find(x=>x.id===id).status=status;save()}function focusItem(id){data.items.forEach(x=>x.focus=x.id===id?!x.focus:false);save();scrollTo({top:0,behavior:'smooth'})}function setFilter(x){filter=x;render()}function clearFilter(){setFilter('全部')}function saveReview(){data.reviews[day()]=document.querySelector('#review').value.trim();save();let b=document.querySelector('.review-actions button');b.textContent='已保存 ✓';setTimeout(()=>b.textContent='保存今日复盘',1200)}document.querySelector('#quickInput').addEventListener('keydown',e=>{if(e.key==='Enter')quickAdd()});if('serviceWorker'in navigator)navigator.serviceWorker.register('./sw.js');render();
-</script></body></html>
+<body>
+  <main class="shell">
+    <header>
+      <div><div class="brand">探光</div><div class="subtitle">让好奇有入口，也有出口</div></div>
+      <div class="date" id="today"></div>
+    </header>
+
+    <section class="view active" id="view-today">
+      <div class="direction card-soft">
+        <div class="direction-row"><span>今年在解决</span><button class="text-button" data-action="edit-plan">编辑</button></div>
+        <p id="annualQuestion" class="direction-text muted">还没有写下年度问题</p>
+        <div class="divider"></div>
+        <div class="direction-row"><span>本月在解决</span></div>
+        <p id="monthlyQuestion" class="direction-text">先决定这个月最值得推进的一个问题</p>
+      </div>
+
+      <section class="focus" id="focusCard"></section>
+
+      <button class="unknown-entry" data-view="choose">
+        <span class="unknown-icon">⌁</span>
+        <span><strong>我现在不知道做什么</strong><small>按时间、能量和意图，只给我几个选择</small></span>
+        <span>›</span>
+      </button>
+
+      <div class="section-title"><h2>安静的收集箱</h2><button class="text-button" data-view="inbox">每周整理</button></div>
+      <div class="inbox-summary card-soft">
+        <div><strong id="questionCount">0</strong><span>个好奇问题</span></div>
+        <div><strong id="lifeCount">0</strong><span>个生活愿望</span></div>
+        <div><strong id="shortlistCount">0/3</strong><span>个本周候选</span></div>
+      </div>
+      <p class="quiet-note">这里只显示数量，不展示题目。收下来不等于现在就要解决。</p>
+    </section>
+
+    <section class="view" id="view-choose">
+      <div class="page-heading"><div><span class="kicker">不知道做什么时</span><h1>先看看此刻的你</h1></div></div>
+      <div class="chooser card-soft">
+        <label>我有多少时间？</label>
+        <div class="segmented" data-choice="time">
+          <button class="active" data-value="10">10 分钟</button><button data-value="60">30–60 分钟</button><button data-value="half">半天以上</button>
+        </div>
+        <label>我现在的能量？</label>
+        <div class="segmented" data-choice="energy">
+          <button data-value="low">低</button><button class="active" data-value="mid">中</button><button data-value="high">高</button>
+        </div>
+        <label>我此刻更想要？</label>
+        <div class="intent-grid" data-choice="intent">
+          <button class="active" data-value="main">🎯<span>推进主线</span></button>
+          <button data-value="explore">🔍<span>限时探索</span></button>
+          <button data-value="life">🍃<span>体验生活</span></button>
+          <button data-value="recover">☁️<span>恢复状态</span></button>
+        </div>
+        <button class="primary wide" data-action="recommend">给我几个选择</button>
+      </div>
+      <div id="recommendations" class="recommendations"></div>
+    </section>
+
+    <section class="view" id="view-inbox">
+      <div class="page-heading"><div><span class="kicker">每周整理一次</span><h1>灵感收集箱</h1></div><button class="round-add" data-action="capture">＋</button></div>
+      <div class="tabs" data-inbox-tabs><button class="active" data-kind="question">好奇问题</button><button data-kind="life">生活愿望</button></div>
+      <div id="inboxList" class="cards"></div>
+    </section>
+
+    <section class="view" id="view-review">
+      <div class="page-heading"><div><span class="kicker">轻轻合上今天</span><h1>带走一束光</h1></div></div>
+      <div class="review card-soft">
+        <label for="reviewText">今天发现了什么？下一步最小行动是什么？</label>
+        <textarea id="reviewText" placeholder="不必完整，留下真正有用的一句话就好。"></textarea>
+        <button class="primary" data-action="save-review">保存今日复盘</button>
+      </div>
+      <div class="section-title"><h2>最近留下的光</h2></div>
+      <div id="reviewHistory" class="cards"></div>
+    </section>
+  </main>
+
+  <button class="floating-add" data-action="capture" aria-label="收下灵感">＋</button>
+  <nav class="nav">
+    <button class="active" data-view="today"><span>✦</span>今日</button>
+    <button data-view="choose"><span>⌁</span>做什么</button>
+    <button data-view="inbox"><span>◇</span>收集箱</button>
+    <button data-view="review"><span>◌</span>复盘</button>
+  </nav>
+
+  <div class="modal" id="captureModal"><form class="sheet" id="captureForm">
+    <div class="sheet-head"><div><span class="kicker">先收下来，不立刻展开</span><h2>收下一颗灵感</h2></div><button type="button" class="close" data-close>×</button></div>
+    <div class="tabs compact" data-capture-tabs><button type="button" class="active" data-kind="question">一个问题</button><button type="button" data-kind="life">想体验的生活</button></div>
+    <div class="field"><label id="captureTitleLabel">我想探索的问题</label><textarea id="captureTitle" required placeholder="为什么……？如果……会怎样？"></textarea></div>
+    <div id="questionFields"><div class="field"><label>领域</label><select id="questionTag"><option>工作</option><option>科普</option><option>技术</option><option>生活</option><option>其他</option></select></div></div>
+    <div id="lifeFields" hidden>
+      <div class="row"><div class="field"><label>类型</label><select id="lifeCategory"><option>探店</option><option>美食</option><option>书</option><option>电影</option><option>地点</option><option>活动</option><option>联系某人</option><option>其他</option></select></div><div class="field"><label>需要时间</label><select id="lifeTime"><option value="10">10 分钟</option><option value="60">30–60 分钟</option><option value="half">半天以上</option></select></div></div>
+      <div class="field"><label>适合什么能量？</label><select id="lifeEnergy"><option value="low">低能量也可以</option><option value="mid">中等能量</option><option value="high">高能量</option></select></div>
+    </div>
+    <button class="primary wide">收进箱子</button>
+  </form></div>
+
+  <div class="modal" id="planModal"><form class="sheet" id="planForm">
+    <div class="sheet-head"><div><span class="kicker">方向层</span><h2>我正在解决什么</h2></div><button type="button" class="close" data-close>×</button></div>
+    <div class="field"><label>今年最值得建设的问题（最多 1–3 个）</label><textarea id="annualInput" placeholder="怎样把好奇心转化为稳定行动？"></textarea></div>
+    <div class="field"><label>本月唯一主要问题</label><textarea id="monthlyInput" placeholder="这个月用什么现实证据推进它？"></textarea></div>
+    <button class="primary wide">保存方向</button>
+  </form></div>
+
+  <div class="modal" id="contractModal"><form class="sheet" id="contractForm">
+    <div class="sheet-head"><div><span class="kicker">开始前先定位终点</span><h2>探索小契约</h2></div><button type="button" class="close" data-close>×</button></div>
+    <input type="hidden" id="contractId">
+    <div class="contract-question" id="contractQuestion"></div>
+    <div class="field"><label>这次探索是为了什么？</label><input id="contractPurpose" required placeholder="获得基本答案 / 做一个决定…"></div>
+    <div class="row"><div class="field"><label>探索层级</label><select id="contractLevel"><option value="快速知道">快速知道</option><option value="初步理解">初步理解</option><option value="帮助决定">帮助决定</option><option value="形成产出">形成产出</option></select></div><div class="field"><label>时间上限</label><select id="contractMinutes"><option value="15">15 分钟</option><option value="45" selected>45 分钟</option><option value="90">90 分钟</option><option value="project">独立项目</option></select></div></div>
+    <div class="field"><label>做到什么就结束？</label><input id="contractDone" required placeholder="我能用三句话解释；找到两个可信来源…"></div>
+    <div class="field"><label>这次暂时不研究</label><input id="contractNotNow" placeholder="历史细节、相邻机制、所有可能方案…"></div>
+    <div class="field"><label>第一步</label><input id="contractNext" placeholder="打开一篇综述 / 比较三个选项…"></div>
+    <button class="primary wide">开始这一次探索</button>
+  </form></div>
+
+  <div class="modal" id="finishModal"><form class="sheet" id="finishForm">
+    <div class="sheet-head"><div><span class="kicker">到达终点就停下来</span><h2>结束这次探索</h2></div><button type="button" class="close" data-close>×</button></div>
+    <div class="field"><label>我得到的答案 / 证据</label><textarea id="finishResult" required placeholder="用几句话留下真正有用的结论。"></textarea></div>
+    <div class="field"><label>它现在去哪里？</label><select id="finishState"><option value="understood">已理解，合上它</option><option value="project">转化为项目</option><option value="shortlist">仍值得探索，放回本周候选</option><option value="inbox">暂时开放，放回 Inbox</option></select></div>
+    <div class="field"><label>下一步（可选）</label><input id="finishNext" placeholder="做一个决定 / 安排一个实验…"></div>
+    <label class="check"><input type="checkbox" id="parkBranches" checked> 把停车场里的分支问题送入 Curiosity Inbox</label>
+    <button class="primary wide">结束并保存</button>
+  </form></div>
+
+  <div class="toast" id="toast"></div>
+  <script src="app.js"></script>
+</body>
+</html>
