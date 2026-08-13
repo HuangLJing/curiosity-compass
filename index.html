@@ -10,6 +10,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="apple-touch-icon" href="icons/icon-512.png">
   <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="data-tools.css">
   <title>探光 · 好奇心与生活灵感</title>
 </head>
 <body>
@@ -69,8 +70,8 @@
     </section>
 
     <section class="view" id="view-inbox">
-      <div class="page-heading"><div><span class="kicker">每周整理一次</span><h1>灵感收集箱</h1></div><button class="round-add" data-action="capture">＋</button></div>
-      <div class="tabs" data-inbox-tabs><button class="active" data-kind="question">好奇问题</button><button data-kind="life">生活愿望</button></div>
+      <div class="page-heading"><div><span class="kicker">每周整理一次</span><h1>灵感收集箱</h1></div><div class="heading-actions"><button class="round-menu" data-action="data-tools">···</button><button class="round-add" data-action="capture">＋</button></div></div>
+      <div class="tabs" data-inbox-tabs><button class="active" data-kind="question">好奇问题</button><button data-kind="life">生活愿望</button><button data-kind="completed">已完成</button></div>
       <div id="inboxList" class="cards"></div>
     </section>
 
@@ -133,6 +134,32 @@
     <label class="check"><input type="checkbox" id="parkBranches" checked> 把停车场里的分支问题送入 Curiosity Inbox</label>
     <button class="primary wide">结束并保存</button>
   </form></div>
+
+  <div class="modal" id="lifeCompleteModal"><form class="sheet" id="lifeCompleteForm">
+    <div class="sheet-head"><div><span class="kicker">把体验留在生活里</span><h2>完成一次体验</h2></div><button type="button" class="close" data-close>×</button></div>
+    <input type="hidden" id="lifeCompleteId">
+    <div class="contract-question" id="lifeCompleteTitle"></div>
+    <div class="field"><label>最想记住什么？</label><textarea id="lifeMemory" required placeholder="味道、感受、一个瞬间，或这本书真正留下的东西。"></textarea></div>
+    <div class="row"><div class="field"><label>完成日期</label><input type="date" id="lifeCompletedAt" required></div><div class="field"><label>会再次体验吗？</label><select id="lifeAgain"><option value="maybe">也许</option><option value="yes">会</option><option value="no">不会</option></select></div></div>
+    <div class="row"><div class="field"><label>评分（可选）</label><select id="lifeRating"><option value="">不评分</option><option value="5">5 分</option><option value="4">4 分</option><option value="3">3 分</option><option value="2">2 分</option><option value="1">1 分</option></select></div><div class="field"><label>地点（可选）</label><input id="lifePlace" placeholder="餐厅、城市、家里…"></div></div>
+    <button class="primary wide">保存到已完成</button>
+  </form></div>
+
+  <div class="modal" id="dataToolsModal"><div class="sheet">
+    <div class="sheet-head"><div><span class="kicker">本地数据</span><h2>备份与恢复</h2></div><button type="button" class="close" data-close>×</button></div>
+    <div class="data-section"><h3>完整备份</h3><p>用于换设备或恢复，包含规划、问题、愿望、契约、体验和复盘。</p><div class="data-actions"><button class="primary" data-action="export-json">导出 JSON</button><label class="file-button">导入备份<input type="file" id="importFile" accept="application/json,.json"></label></div></div>
+    <div class="data-section"><h3>便于阅读</h3><p>CSV 可用 Excel 打开，不用于完整恢复。</p><div class="data-actions wrap"><button data-action="export-questions">好奇问题 CSV</button><button data-action="export-life">生活体验 CSV</button><button data-action="export-reviews">每日复盘 CSV</button></div></div>
+    <div class="data-section" id="importReportSection" hidden><h3>最近一次导入</h3><div id="importReport" class="import-report"></div><button class="danger-button" data-action="undo-import">撤销本次导入</button></div>
+    <p class="privacy-note">导入只会合并，不会覆盖当前内容。导入前会自动建立本地恢复点。</p>
+  </div></div>
+
+  <div class="modal" id="planConflictModal"><div class="sheet">
+    <div class="sheet-head"><div><span class="kicker">规划差异</span><h2>备份里有不同的方向</h2></div><button type="button" class="close" data-close>×</button></div>
+    <p class="quiet-note left">当前年度与月度问题不会被自动替换。下面内容已保存在待确认区域。</p>
+    <div id="planConflicts" class="cards"></div>
+    <p class="hint">使用导入的问题前，会保留你现在的问题；你也可以暂时不处理。</p>
+    <button class="primary wide" data-close>知道了</button>
+  </div></div>
 
   <div class="toast" id="toast"></div>
   <script src="app.js"></script>

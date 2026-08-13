@@ -1,5 +1,6 @@
 const KEY = 'tanguang-v2';
 const OLD_KEY = 'tanguang-v1';
+const SNAPSHOT_KEY = 'tanguang-import-snapshot';
 const $ = selector => document.querySelector(selector);
 const $$ = selector => [...document.querySelectorAll(selector)];
 const day = () => new Date().toISOString().slice(0, 10);
@@ -25,11 +26,12 @@ function loadData() {
 }
 
 function normalize(raw) {
-  raw.version = 2;
+  raw.version = 3;
   raw.plan ||= { annual: '', monthly: '' };
   raw.items ||= [];
   raw.reviews ||= {};
-  raw.items.forEach(item => { item.branches ||= []; item.kind ||= 'question'; item.state ||= item.kind === 'life' ? 'wishlist' : 'inbox'; });
+  raw.pendingPlans ||= [];
+  raw.items.forEach(item => { item.branches ||= []; item.kind ||= 'question'; item.state ||= item.kind === 'life' ? 'wishlist' : 'inbox'; item.createdAt ||= ''; });
   return raw;
 }
 
@@ -91,10 +93,13 @@ function renderInbox() {
   if (inboxKind === 'question') {
     list = data.items.filter(item => item.kind === 'question' && !['understood'].includes(item.state));
     list.sort((a, b) => ({ active: 0, shortlist: 1, project: 2, inbox: 3 }[a.state] ?? 4) - ({ active: 0, shortlist: 1, project: 2, inbox: 3 }[b.state] ?? 4));
-  } else {
+  } else if (inboxKind === 'life') {
     list = data.items.filter(item => item.kind === 'life' && item.state !== 'done');
+  } else {
+    list = data.items.filter(item => item.state === 'done' || item.state === 'understood' || item.state === 'project');
+    list.sort((a, b) => String(b.completedAt || b.updatedAt || '').localeCompare(String(a.completedAt || a.updatedAt || '')));
   }
-  $('#inboxList').innerHTML = list.length ? list.map(item => inboxKind === 'question' ? questionCard(item) : lifeCard(item)).join('') : `<div class="empty">这里还是空的。遇到想问、想去、想吃或想读的，先轻轻收下来。</div>`;
+  $('#inboxList').innerHTML = list.length ? list.map(item => inboxKind === 'question' ? questionCard(item) : inboxKind === 'life' ? lifeCard(item) : completedCard(item)).join('') : `<div class="empty">${inboxKind === 'completed' ? '完成一次探索或体验后，它会安静地留在这里。' : '这里还是空的。遇到想问、想去、想吃或想读的，先轻轻收下来。'}</div>`;
   bindDynamic();
 }
 
@@ -112,6 +117,14 @@ function lifeCard(item) {
   const time = ({ 10: '10 分钟', 60: '30–60 分钟', half: '半天以上' })[item.time] || '时间不限';
   const energy = ({ low: '低能量', mid: '中等能量', high: '高能量' })[item.energy] || '';
   return `<article class="card"><div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${esc(item.category || '生活')}</span></div><div class="card-meta">${time} · ${energy}</div><div class="card-actions"><button class="emphasis" data-action="life-done" data-id="${item.id}">我体验过了</button><button class="danger" data-action="delete" data-id="${item.id}">删除</button></div></article>`;
+}
+
+function completedCard(item) {
+  if (item.kind === 'life') {
+    const again = ({ yes: '愿意再次体验', no: '不打算再次体验', maybe: '也许会再次体验' })[item.again] || '';
+    return `<article class="card"><div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${esc(item.category || '生活')}</span></div><div class="card-meta">${esc(item.completedAt || '')}${item.place ? ` · ${esc(item.place)}` : ''}${again ? ` · ${again}` : ''}</div>${item.rating ? `<div class="stars">${'★'.repeat(Number(item.rating))}${'☆'.repeat(5 - Number(item.rating))}</div>` : ''}<div class="completed-memory">${esc(item.memory || '已完成这次体验')}</div></article>`;
+  }
+  return `<article class="card"><div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${stateLabel(item.state)}</span></div><div class="card-meta">${esc(item.tag || '其他')}${item.next ? ` · 下一步：${esc(item.next)}` : ''}</div>${item.result ? `<div class="completed-memory">${esc(item.result)}</div>` : ''}</article>`;
 }
 
 function renderReviews() {
@@ -201,9 +214,107 @@ function handleRecommendation(action, id) {
   if (action === 'life') toast('已经选好了，去体验，不必继续比较');
 }
 
+function openLifeComplete(id) {
+  const item = data.items.find(x => x.id === Number(id));
+  if (!item) return;
+  $('#lifeCompleteForm').reset();
+  $('#lifeCompleteId').value = item.id;
+  $('#lifeCompleteTitle').textContent = item.title;
+  $('#lifeCompletedAt').value = day();
+  openModal('lifeCompleteModal');
+}
+
+function downloadFile(name, content, type) {
+  const url = URL.createObjectURL(new Blob([content], { type }));
+  const link = document.createElement('a');
+  link.href = url; link.download = name; document.body.appendChild(link); link.click(); link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+function exportJson() {
+  const payload = { app: 'tanguang', schemaVersion: 3, exportedAt: new Date().toISOString(), data };
+  downloadFile(`探光完整备份-${day()}.json`, JSON.stringify(payload, null, 2), 'application/json;charset=utf-8');
+  toast('完整备份已导出');
+}
+
+function csvCell(value) { return `"${String(value ?? '').replace(/"/g, '""')}"`; }
+function exportCsv(name, headers, rows) {
+  const csv = '\ufeff' + [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
+  downloadFile(name, csv, 'text/csv;charset=utf-8');
+}
+
+function exportQuestionsCsv() {
+  exportCsv(`探光-好奇问题-${day()}.csv`, ['标题', '标签', '状态', '探索层级', '结束条件', '结果', '下一步'], data.items.filter(x => x.kind === 'question').map(x => [x.title, x.tag, stateLabel(x.state), x.level, x.doneWhen, x.result, x.next]));
+}
+function exportLifeCsv() {
+  exportCsv(`探光-生活体验-${day()}.csv`, ['名称', '类型', '状态', '完成日期', '最想记住', '评分', '再次体验', '地点'], data.items.filter(x => x.kind === 'life').map(x => [x.title, x.category, stateLabel(x.state), x.completedAt, x.memory, x.rating, x.again, x.place]));
+}
+function exportReviewsCsv() {
+  exportCsv(`探光-每日复盘-${day()}.csv`, ['日期', '复盘'], Object.entries(data.reviews).sort((a, b) => b[0].localeCompare(a[0])));
+}
+
+function simpleKey(item) { return `${item.kind || 'question'}|${String(item.title || '').trim().toLowerCase()}|${item.createdAt || ''}`; }
+function contentKey(item) { const copy = { ...item }; delete copy.id; return JSON.stringify(copy); }
+
+function mergeImport(payload) {
+  if (!payload || payload.app !== 'tanguang' || !payload.data || !Array.isArray(payload.data.items)) throw new Error('这不是有效的探光备份文件');
+  if (Number(payload.schemaVersion || 0) > 3) throw new Error('备份来自更新版本，请先更新探光');
+  localStorage.setItem(SNAPSHOT_KEY, JSON.stringify({ savedAt: new Date().toISOString(), data }));
+  const incoming = normalize(JSON.parse(JSON.stringify(payload.data)));
+  const report = { added: 0, skipped: 0, conflicts: 0, plans: 0 };
+  const existingSimple = new Map(data.items.map(item => [simpleKey(item), item]));
+  const existingIds = new Map(data.items.map(item => [String(item.id), item]));
+  incoming.items.forEach(item => {
+    const same = existingSimple.get(simpleKey(item));
+    if (same && contentKey(same) === contentKey(item)) { report.skipped++; return; }
+    const sameId = existingIds.get(String(item.id));
+    if (sameId && contentKey(sameId) !== contentKey(item)) { item.id = uid(); report.conflicts++; }
+    else if (same) { item.id = uid(); report.conflicts++; }
+    data.items.push(item); existingSimple.set(simpleKey(item), item); existingIds.set(String(item.id), item); report.added++;
+  });
+  Object.entries(incoming.reviews || {}).forEach(([date, text]) => {
+    if (!data.reviews[date]) { data.reviews[date] = text; report.added++; }
+    else if (data.reviews[date] === text) report.skipped++;
+    else { data.reviews[`${date}-导入-${Date.now()}`] = text; report.conflicts++; report.added++; }
+  });
+  ['annual', 'monthly'].forEach(type => {
+    const value = incoming.plan?.[type];
+    if (value && value !== data.plan[type]) { data.pendingPlans.push({ id: uid(), type, value, importedAt: new Date().toISOString() }); report.plans++; }
+  });
+  data.lastImportReport = { ...report, importedAt: new Date().toISOString() };
+  return report;
+}
+
+function showImportReport(report, showPlans = true) {
+  $('#importReportSection').hidden = false;
+  $('#importReport').innerHTML = `<div><strong>${report.added}</strong><span>新增</span></div><div><strong>${report.skipped}</strong><span>跳过重复</span></div><div><strong>${report.conflicts}</strong><span>保留冲突</span></div>`;
+  if (showPlans && report.plans) {
+    $('#planConflicts').innerHTML = data.pendingPlans.slice(-report.plans).map(plan => `<article class="card"><div class="card-meta">${plan.type === 'annual' ? '年度问题' : '月度问题'}</div><div class="card-title">${esc(plan.value)}</div><button class="secondary" type="button" data-action="adopt-plan" data-id="${plan.id}">使用这个问题</button></article>`).join('');
+    openModal('planConflictModal');
+  }
+}
+
+async function importBackup(file) {
+  try {
+    const payload = JSON.parse(await file.text());
+    const report = mergeImport(payload);
+    save(); openModal('dataToolsModal'); showImportReport(report);
+    toast(`导入完成：新增 ${report.added} 条`);
+  } catch (error) { toast(error.message || '导入失败，当前数据没有改变'); }
+  $('#importFile').value = '';
+}
+
+function undoImport() {
+  const snapshot = JSON.parse(localStorage.getItem(SNAPSHOT_KEY) || 'null');
+  if (!snapshot?.data) return toast('没有可以撤销的导入');
+  data = normalize(snapshot.data); localStorage.removeItem(SNAPSHOT_KEY); save('已恢复到导入前');
+  $('#importReportSection').hidden = true;
+}
+
 function bindDynamic() {
   $$('[data-view]').forEach(button => { button.onclick = () => showView(button.dataset.view); });
   $$('[data-action="capture"]').forEach(button => { button.onclick = () => openCapture(); });
+  $$('[data-action="data-tools"]').forEach(button => { button.onclick = () => { if (data.lastImportReport) showImportReport(data.lastImportReport, false); openModal('dataToolsModal'); }; });
   $$('[data-action="edit-plan"]').forEach(button => { button.onclick = () => { $('#annualInput').value = data.plan.annual; $('#monthlyInput').value = data.plan.monthly; openModal('planModal'); }; });
   $$('[data-action="shortlist"]').forEach(button => { button.onclick = () => { const short = data.items.filter(x => x.kind === 'question' && x.state === 'shortlist'); if (short.length >= 3) return toast('本周候选最多三个'); const item = data.items.find(x => x.id === Number(button.dataset.id)); item.state = 'shortlist'; save('已加入本周候选'); }; });
   $$('[data-action="unshortlist"]').forEach(button => { button.onclick = () => { data.items.find(x => x.id === Number(button.dataset.id)).state = 'inbox'; save('已放回 Inbox'); }; });
@@ -211,10 +322,21 @@ function bindDynamic() {
   $$('[data-action="finish"]').forEach(button => { button.onclick = () => { finishTarget = Number(button.dataset.id); $('#finishForm').reset(); $('#parkBranches').checked = true; openModal('finishModal'); }; });
   $$('[data-action="add-branch"]').forEach(button => { button.onclick = () => { const input = $('#branchInput'); const value = input.value.trim(); if (!value) return; data.items.find(x => x.id === Number(button.dataset.id)).branches.push(value); save('已停放，不切换当前探索'); }; });
   $$('[data-action="delete"]').forEach(button => { button.onclick = () => { data.items = data.items.filter(x => x.id !== Number(button.dataset.id)); save('已删除'); }; });
-  $$('[data-action="life-done"]').forEach(button => { button.onclick = () => { data.items.find(x => x.id === Number(button.dataset.id)).state = 'done'; save('已留下这次生活体验'); }; });
+  $$('[data-action="life-done"]').forEach(button => { button.onclick = () => openLifeComplete(button.dataset.id); });
 }
 
 document.addEventListener('click', event => {
+  const adoptButton = event.target.closest('[data-action="adopt-plan"]');
+  if (adoptButton) {
+    const plan = data.pendingPlans.find(x => x.id === Number(adoptButton.dataset.id));
+    if (plan) {
+      data.plan[plan.type] = plan.value;
+      data.pendingPlans = data.pendingPlans.filter(x => x.id !== plan.id);
+      adoptButton.closest('.card').remove();
+      save('已采用导入的问题');
+      if (!$('#planConflicts').children.length) closeModals();
+    }
+  }
   const viewButton = event.target.closest('[data-view]');
   if (viewButton && viewButton.closest('.nav')) showView(viewButton.dataset.view);
   if (event.target.matches('[data-close]') || (event.target.classList.contains('modal'))) closeModals();
@@ -230,12 +352,19 @@ $$('[data-inbox-tabs] button').forEach(button => button.addEventListener('click'
 $$('[data-capture-tabs] button').forEach(button => button.addEventListener('click', () => setCaptureKind(button.dataset.kind)));
 $('[data-action="recommend"]').addEventListener('click', recommend);
 $('[data-action="save-review"]').addEventListener('click', () => { data.reviews[day()] = $('#reviewText').value.trim(); save('今天的光已保存'); });
+$('[data-action="export-json"]').addEventListener('click', exportJson);
+$('[data-action="export-questions"]').addEventListener('click', exportQuestionsCsv);
+$('[data-action="export-life"]').addEventListener('click', exportLifeCsv);
+$('[data-action="export-reviews"]').addEventListener('click', exportReviewsCsv);
+$('[data-action="undo-import"]').addEventListener('click', undoImport);
+$('#importFile').addEventListener('change', event => { const file = event.target.files[0]; if (file) importBackup(file); });
 
 $('#captureForm').addEventListener('submit', event => {
   event.preventDefault();
   const title = $('#captureTitle').value.trim();
-  if (captureKind === 'question') data.items.unshift({ id: uid(), kind: 'question', title, tag: $('#questionTag').value, state: 'inbox', branches: [] });
-  else data.items.unshift({ id: uid(), kind: 'life', title, category: $('#lifeCategory').value, time: $('#lifeTime').value, energy: $('#lifeEnergy').value, state: 'wishlist', branches: [] });
+  const createdAt = new Date().toISOString();
+  if (captureKind === 'question') data.items.unshift({ id: uid(), kind: 'question', title, tag: $('#questionTag').value, state: 'inbox', branches: [], createdAt });
+  else data.items.unshift({ id: uid(), kind: 'life', title, category: $('#lifeCategory').value, time: $('#lifeTime').value, energy: $('#lifeEnergy').value, state: 'wishlist', branches: [], createdAt });
   closeModals();
   save(captureKind === 'question' ? '已收进 Curiosity Inbox' : '已收进 Life Wishlist');
 });
@@ -246,6 +375,14 @@ $('#planForm').addEventListener('submit', event => {
   data.plan.monthly = $('#monthlyInput').value.trim();
   closeModals();
   save('方向已更新');
+});
+
+$('#lifeCompleteForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const item = data.items.find(x => x.id === Number($('#lifeCompleteId').value));
+  if (!item) return;
+  Object.assign(item, { state: 'done', memory: $('#lifeMemory').value.trim(), completedAt: $('#lifeCompletedAt').value, again: $('#lifeAgain').value, rating: $('#lifeRating').value, place: $('#lifePlace').value.trim(), updatedAt: new Date().toISOString() });
+  closeModals(); inboxKind = 'completed'; showView('inbox'); save('已保存到完成档案');
 });
 
 $('#contractForm').addEventListener('submit', event => {
@@ -268,6 +405,8 @@ $('#finishForm').addEventListener('submit', event => {
   item.branches = [];
   item.result = result;
   item.state = $('#finishState').value;
+  item.updatedAt = new Date().toISOString();
+  if (item.state === 'understood' || item.state === 'project') item.completedAt = day();
   item.next = $('#finishNext').value.trim();
   const existing = data.reviews[day()] || '';
   data.reviews[day()] = `${existing}${existing ? '\n\n' : ''}【${item.title}】\n${result}${item.next ? `\n下一步：${item.next}` : ''}`;
