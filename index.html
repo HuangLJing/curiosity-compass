@@ -73,6 +73,7 @@
     <section class="view" id="view-inbox">
       <div class="page-heading"><div><span class="kicker">每周整理一次</span><h1>灵感收集箱</h1></div><div class="heading-actions"><button class="round-menu" data-action="data-tools">···</button><button class="round-add" data-action="capture">＋</button></div></div>
       <div class="tabs" data-inbox-tabs><button class="active" data-kind="question">好奇问题</button><button data-kind="life">生活愿望</button><button data-kind="completed">已完成</button></div>
+      <div class="inbox-tools"><label class="search-box"><span>⌕</span><input id="inboxSearch" type="search" placeholder="搜索收集箱"></label><select id="inboxCategory" aria-label="选择分类"></select></div>
       <div id="inboxList" class="cards"></div>
     </section>
 
@@ -100,7 +101,7 @@
     <div class="sheet-head"><div><span class="kicker">先收下来，不立刻展开</span><h2>收下一颗灵感</h2></div><button type="button" class="close" data-close>×</button></div>
     <div class="tabs compact" data-capture-tabs><button type="button" class="active" data-kind="question">一个问题</button><button type="button" data-kind="life">想体验的生活</button></div>
     <div class="field"><label id="captureTitleLabel">我想探索的问题</label><textarea id="captureTitle" required placeholder="为什么……？如果……会怎样？"></textarea></div>
-    <div id="questionFields"><div class="field"><label>领域</label><select id="questionTag"><option>工作</option><option>科普</option><option>技术</option><option>生活</option><option>其他</option></select></div></div>
+    <div id="questionFields"><div class="field"><label>领域</label><select id="questionTag"><option>工作</option><option>科普</option><option>技术</option><option>生活</option><option>其他</option></select></div><div class="field"><label>相关链接（可选）</label><input id="questionUrl" type="url" inputmode="url" placeholder="粘贴网页链接，卡片只显示网站名称"></div></div>
     <div id="lifeFields" hidden>
       <div class="row"><div class="field"><label>类型</label><select id="lifeCategory"><option>探店</option><option>美食</option><option>书</option><option>电影</option><option>地点</option><option>活动</option><option>联系某人</option><option>其他</option></select></div><div class="field"><label>需要时间</label><select id="lifeTime"><option value="10">10 分钟</option><option value="60">30–60 分钟</option><option value="half">半天以上</option></select></div></div>
       <div class="field"><label>适合什么能量？</label><select id="lifeEnergy"><option value="low">低能量也可以</option><option value="mid">中等能量</option><option value="high">高能量</option></select></div>
@@ -121,6 +122,7 @@
     <div class="field"><label id="itemEditTitleLabel">内容</label><textarea id="itemEditTitle" required></textarea></div>
     <div id="itemEditQuestionFields">
       <div class="field"><label>领域</label><select id="itemEditTag"><option>工作</option><option>科普</option><option>技术</option><option>生活</option><option>其他</option></select></div>
+      <div class="field"><label>相关链接（可选）</label><input id="itemEditUrl" type="url" inputmode="url" placeholder="https://..."></div>
       <div class="field" id="itemEditResultField" hidden><label>探索结论 / 感悟</label><textarea id="itemEditResult"></textarea></div>
       <div class="field" id="itemEditNextField" hidden><label>下一步（可选）</label><input id="itemEditNext"></div>
     </div>

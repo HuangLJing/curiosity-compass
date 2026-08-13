@@ -11,3 +11,9 @@
 .swipe-delete { background: #b66f60; }
 .swipe-content { position: relative; z-index: 1; width: 100%; transition: transform .2s ease; will-change: transform; }
 .swipe-row.open .swipe-content { transform: translateX(-144px); }
+.inbox-tools { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px; margin: -2px 0 14px; }
+.search-box { display: flex; align-items: center; gap: 7px; min-width: 0; padding: 0 11px; border: 1px solid var(--line); border-radius: 13px; background: white; color: var(--muted); }
+.search-box input { min-width: 0; width: 100%; padding: 10px 0; border: 0; outline: 0; background: transparent; }
+.inbox-tools select { max-width: 118px; padding: 0 10px; border: 1px solid var(--line); border-radius: 13px; background: white; color: var(--leaf-dark); font-weight: 700; }
+.source-link { display: inline-flex; align-items: center; max-width: 100%; margin-top: 9px; padding: 7px 9px; border-radius: 9px; background: var(--leaf2); color: var(--leaf-dark); font-size: 11px; font-weight: 800; text-decoration: none; }
+.source-link span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

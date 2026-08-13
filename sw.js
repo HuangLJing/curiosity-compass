@@ -1,4 +1,4 @@
-const CACHE = 'tanguang-v5';
+const CACHE = 'tanguang-v6';
 const ASSETS = [
   './',
   './index.html',

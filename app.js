@@ -38,6 +38,8 @@ function normalize(raw) {
 let data = loadData();
 let currentView = 'today';
 let inboxKind = 'question';
+let inboxSearch = '';
+let inboxCategory = '全部';
 let captureKind = 'question';
 let finishTarget = null;
 
@@ -99,7 +101,17 @@ function renderInbox() {
     list = data.items.filter(item => item.state === 'done' || item.state === 'understood' || item.state === 'project');
     list.sort((a, b) => String(b.completedAt || b.updatedAt || '').localeCompare(String(a.completedAt || a.updatedAt || '')));
   }
-  $('#inboxList').innerHTML = list.length ? list.map(item => inboxKind === 'question' ? questionCard(item) : inboxKind === 'life' ? lifeCard(item) : completedCard(item)).join('') : `<div class="empty">${inboxKind === 'completed' ? '完成一次探索或体验后，它会安静地留在这里。' : '这里还是空的。遇到想问、想去、想吃或想读的，先轻轻收下来。'}</div>`;
+  const categoryValues = inboxKind === 'question' ? ['全部', '工作', '科普', '技术', '生活', '其他'] : inboxKind === 'life' ? ['全部', '探店', '美食', '书', '电影', '地点', '活动', '联系某人', '其他'] : ['全部', '好奇问题', '生活体验'];
+  if (!categoryValues.includes(inboxCategory)) inboxCategory = '全部';
+  $('#inboxCategory').innerHTML = categoryValues.map(value => `<option${value === inboxCategory ? ' selected' : ''}>${value}</option>`).join('');
+  const categoryOf = item => inboxKind === 'question' ? (item.tag || '其他') : inboxKind === 'life' ? (item.category || '其他') : (item.kind === 'life' ? '生活体验' : '好奇问题');
+  if (inboxCategory !== '全部') list = list.filter(item => categoryOf(item) === inboxCategory);
+  if (inboxSearch) {
+    const term = inboxSearch.toLowerCase();
+    list = list.filter(item => [item.title, item.tag, item.category, item.result, item.memory, item.place, item.url, ...(item.reflections || []).map(x => x.text)].some(value => String(value || '').toLowerCase().includes(term)));
+  }
+  const emptyText = inboxSearch || inboxCategory !== '全部' ? '没有符合当前搜索或分类的内容。' : inboxKind === 'completed' ? '完成一次探索或体验后，它会安静地留在这里。' : '这里还是空的。遇到想问、想去、想吃或想读的，先轻轻收下来。';
+  $('#inboxList').innerHTML = list.length ? list.map(item => inboxKind === 'question' ? questionCard(item) : inboxKind === 'life' ? lifeCard(item) : completedCard(item)).join('') : `<div class="empty">${emptyText}</div>`;
   bindDynamic();
 }
 
@@ -110,7 +122,20 @@ function questionCard(item) {
   if (item.state === 'shortlist') actions = `<button class="emphasis" data-action="contract" data-id="${item.id}">开始探索</button><button data-action="unshortlist" data-id="${item.id}">放回 Inbox</button>`;
   if (item.state === 'active') actions = `<button class="emphasis" data-view="today">回到当前探索</button>`;
   if (item.state === 'project') actions = `<button data-action="shortlist" data-id="${item.id}">作为本周候选</button>`;
-  return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${stateLabel(item.state)}</span></div><div class="card-meta">${esc(item.tag || '其他')}${item.next ? ` · 下一步：${esc(item.next)}` : ''}</div>${actions ? `<div class="card-actions">${actions}</div>` : ''}`);
+  return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${stateLabel(item.state)}</span></div><div class="card-meta">${esc(item.tag || '其他')}${item.next ? ` · 下一步：${esc(item.next)}` : ''}</div>${linkView(item.url)}${actions ? `<div class="card-actions">${actions}</div>` : ''}`);
+}
+
+function safeUrl(value = '') {
+  const text = String(value).trim();
+  if (!text) return '';
+  try { const url = new URL(/^https?:\/\//i.test(text) ? text : `https://${text}`); return ['http:', 'https:'].includes(url.protocol) ? url.href : ''; } catch { return ''; }
+}
+
+function linkView(value) {
+  const url = safeUrl(value);
+  if (!url) return '';
+  const host = new URL(url).hostname.replace(/^www\./, '');
+  return `<a class="source-link" href="${esc(url)}" target="_blank" rel="noopener noreferrer" aria-label="打开 ${esc(host)}"><span>↗ ${esc(host)}</span></a>`;
 }
 
 function lifeCard(item) {
@@ -129,7 +154,7 @@ function completedCard(item) {
     const reflections = (item.reflections || []).map(entry => `<div class="completed-memory"><span class="card-meta">${esc(entry.date || '')} · 新感悟</span><br>${esc(entry.text)}</div>`).join('');
     return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${esc(item.category || '生活')}</span></div><div class="card-meta">${esc(item.completedAt || '')}${item.place ? ` · ${esc(item.place)}` : ''}${again ? ` · ${again}` : ''}</div>${item.rating ? `<div class="stars">${'★'.repeat(Number(item.rating))}${'☆'.repeat(5 - Number(item.rating))}</div>` : ''}<div class="completed-memory">${esc(item.memory || '已完成这次体验')}</div>${reflections}`);
   }
-  return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${stateLabel(item.state)}</span></div><div class="card-meta">${esc(item.tag || '其他')}${item.next ? ` · 下一步：${esc(item.next)}` : ''}</div>${item.result ? `<div class="completed-memory">${esc(item.result)}</div>` : ''}`);
+  return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${stateLabel(item.state)}</span></div><div class="card-meta">${esc(item.tag || '其他')}${item.next ? ` · 下一步：${esc(item.next)}` : ''}</div>${linkView(item.url)}${item.result ? `<div class="completed-memory">${esc(item.result)}</div>` : ''}`);
 }
 
 function renderReviews() {
@@ -256,6 +281,7 @@ function openItemEdit(id) {
   } else {
     const completed = ['understood', 'project'].includes(item.state);
     $('#itemEditTag').value = item.tag || '其他';
+    $('#itemEditUrl').value = item.url || '';
     $('#itemEditResultField').hidden = !completed;
     $('#itemEditNextField').hidden = !completed;
     $('#itemEditResult').value = item.result || '';
@@ -317,7 +343,7 @@ function exportCsv(name, headers, rows) {
 }
 
 function exportQuestionsCsv() {
-  exportCsv(`探光-好奇问题-${day()}.csv`, ['标题', '标签', '状态', '探索层级', '结束条件', '结果', '下一步'], data.items.filter(x => x.kind === 'question').map(x => [x.title, x.tag, stateLabel(x.state), x.level, x.doneWhen, x.result, x.next]));
+  exportCsv(`探光-好奇问题-${day()}.csv`, ['标题', '标签', '链接', '状态', '探索层级', '结束条件', '结果', '下一步'], data.items.filter(x => x.kind === 'question').map(x => [x.title, x.tag, x.url, stateLabel(x.state), x.level, x.doneWhen, x.result, x.next]));
 }
 function exportLifeCsv() {
   exportCsv(`探光-生活体验-${day()}.csv`, ['名称', '类型', '状态', '完成日期', '最想记住', '新增感悟', '评分', '再次体验', '地点'], data.items.filter(x => x.kind === 'life').map(x => [x.title, x.category, stateLabel(x.state), x.completedAt, x.memory, (x.reflections || []).map(entry => `${entry.date || ''} ${entry.text}`).join('\n'), x.rating, x.again, x.place]));
@@ -424,7 +450,19 @@ $$('[data-choice] button').forEach(button => button.addEventListener('click', ()
   button.classList.add('active');
 }));
 
-$$('[data-inbox-tabs] button').forEach(button => button.addEventListener('click', () => { inboxKind = button.dataset.kind; renderInbox(); }));
+$$('[data-inbox-tabs] button').forEach(button => button.addEventListener('click', () => { inboxKind = button.dataset.kind; inboxCategory = '全部'; renderInbox(); }));
+$('#inboxSearch').addEventListener('input', event => { inboxSearch = event.target.value.trim(); renderInbox(); });
+$('#inboxCategory').addEventListener('change', event => { inboxCategory = event.target.value; renderInbox(); });
+$('#captureTitle').addEventListener('paste', event => {
+  if (captureKind !== 'question') return;
+  const pasted = event.clipboardData?.getData('text')?.trim() || '';
+  const url = safeUrl(pasted);
+  if (!url || !/^https?:\/\//i.test(pasted)) return;
+  event.preventDefault();
+  $('#questionUrl').value = url;
+  if (!$('#captureTitle').value.trim()) $('#captureTitle').value = `待探索：${new URL(url).hostname.replace(/^www\./, '')}`;
+  toast('链接已放入独立字段，可继续修改问题标题');
+});
 $$('[data-capture-tabs] button').forEach(button => button.addEventListener('click', () => setCaptureKind(button.dataset.kind)));
 $('[data-action="recommend"]').addEventListener('click', recommend);
 $('[data-action="save-review"]').addEventListener('click', () => { data.reviews[day()] = $('#reviewText').value.trim(); save('今天的光已保存'); });
@@ -439,7 +477,7 @@ $('#captureForm').addEventListener('submit', event => {
   event.preventDefault();
   const title = $('#captureTitle').value.trim();
   const createdAt = new Date().toISOString();
-  if (captureKind === 'question') data.items.unshift({ id: uid(), kind: 'question', title, tag: $('#questionTag').value, state: 'inbox', branches: [], createdAt });
+  if (captureKind === 'question') data.items.unshift({ id: uid(), kind: 'question', title, tag: $('#questionTag').value, url: safeUrl($('#questionUrl').value), state: 'inbox', branches: [], createdAt });
   else data.items.unshift({ id: uid(), kind: 'life', title, category: $('#lifeCategory').value, time: $('#lifeTime').value, energy: $('#lifeEnergy').value, state: 'wishlist', branches: [], createdAt });
   closeModals();
   save(captureKind === 'question' ? '已收进 Curiosity Inbox' : '已收进 Life Wishlist');
@@ -464,6 +502,7 @@ $('#itemEditForm').addEventListener('submit', event => {
     item.energy = $('#itemEditEnergy').value;
   } else {
     item.tag = $('#itemEditTag').value;
+    item.url = safeUrl($('#itemEditUrl').value);
     if (['understood', 'project'].includes(item.state)) {
       item.result = $('#itemEditResult').value.trim();
       item.next = $('#itemEditNext').value.trim();
