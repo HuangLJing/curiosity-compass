@@ -141,7 +141,7 @@ function linkView(value) {
 function lifeCard(item) {
   const time = ({ 10: '10 分钟', 60: '30–60 分钟', half: '半天以上' })[item.time] || '时间不限';
   const energy = ({ low: '低能量', mid: '中等能量', high: '高能量' })[item.energy] || '';
-  return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${esc(item.category || '生活')}</span></div><div class="card-meta">${time} · ${energy}</div><div class="card-actions"><button class="emphasis" data-action="life-done" data-id="${item.id}">我体验过了</button></div>`);
+  return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${esc(item.category || '生活')}</span></div><div class="card-meta">${time} · ${energy}</div>${linkView(item.url)}<div class="card-actions"><button class="emphasis" data-action="life-done" data-id="${item.id}">我体验过了</button></div>`);
 }
 
 function swipeCard(item, content) {
@@ -152,7 +152,7 @@ function completedCard(item) {
   if (item.kind === 'life') {
     const again = ({ yes: '愿意再次体验', no: '不打算再次体验', maybe: '也许会再次体验' })[item.again] || '';
     const reflections = (item.reflections || []).map(entry => `<div class="completed-memory"><span class="card-meta">${esc(entry.date || '')} · 新感悟</span><br>${esc(entry.text)}</div>`).join('');
-    return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${esc(item.category || '生活')}</span></div><div class="card-meta">${esc(item.completedAt || '')}${item.place ? ` · ${esc(item.place)}` : ''}${again ? ` · ${again}` : ''}</div>${item.rating ? `<div class="stars">${'★'.repeat(Number(item.rating))}${'☆'.repeat(5 - Number(item.rating))}</div>` : ''}<div class="completed-memory">${esc(item.memory || '已完成这次体验')}</div>${reflections}`);
+    return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${esc(item.category || '生活')}</span></div><div class="card-meta">${esc(item.completedAt || '')}${item.place ? ` · ${esc(item.place)}` : ''}${again ? ` · ${again}` : ''}</div>${linkView(item.url)}${item.rating ? `<div class="stars">${'★'.repeat(Number(item.rating))}${'☆'.repeat(5 - Number(item.rating))}</div>` : ''}<div class="completed-memory">${esc(item.memory || '已完成这次体验')}</div>${reflections}`);
   }
   return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${stateLabel(item.state)}</span></div><div class="card-meta">${esc(item.tag || '其他')}${item.next ? ` · 下一步：${esc(item.next)}` : ''}</div>${linkView(item.url)}${item.result ? `<div class="completed-memory">${esc(item.result)}</div>` : ''}`);
 }
@@ -260,6 +260,7 @@ function openLifeComplete(id) {
   $('#lifeAgain').value = item.again || 'maybe';
   $('#lifeRating').value = item.rating || '';
   $('#lifePlace').value = item.place || '';
+  $('#lifeCompleteUrl').value = item.url || '';
   openModal('lifeCompleteModal');
 }
 
@@ -278,6 +279,7 @@ function openItemEdit(id) {
     $('#itemEditCategory').value = item.category || '其他';
     $('#itemEditTime').value = item.time || '10';
     $('#itemEditEnergy').value = item.energy || 'low';
+    $('#itemEditLifeUrl').value = item.url || '';
   } else {
     const completed = ['understood', 'project'].includes(item.state);
     $('#itemEditTag').value = item.tag || '其他';
@@ -346,7 +348,7 @@ function exportQuestionsCsv() {
   exportCsv(`探光-好奇问题-${day()}.csv`, ['标题', '标签', '链接', '状态', '探索层级', '结束条件', '结果', '下一步'], data.items.filter(x => x.kind === 'question').map(x => [x.title, x.tag, x.url, stateLabel(x.state), x.level, x.doneWhen, x.result, x.next]));
 }
 function exportLifeCsv() {
-  exportCsv(`探光-生活体验-${day()}.csv`, ['名称', '类型', '状态', '完成日期', '最想记住', '新增感悟', '评分', '再次体验', '地点'], data.items.filter(x => x.kind === 'life').map(x => [x.title, x.category, stateLabel(x.state), x.completedAt, x.memory, (x.reflections || []).map(entry => `${entry.date || ''} ${entry.text}`).join('\n'), x.rating, x.again, x.place]));
+  exportCsv(`探光-生活体验-${day()}.csv`, ['名称', '类型', '链接', '状态', '完成日期', '最想记住', '新增感悟', '评分', '再次体验', '地点'], data.items.filter(x => x.kind === 'life').map(x => [x.title, x.category, x.url, stateLabel(x.state), x.completedAt, x.memory, (x.reflections || []).map(entry => `${entry.date || ''} ${entry.text}`).join('\n'), x.rating, x.again, x.place]));
 }
 function exportReviewsCsv() {
   exportCsv(`探光-每日复盘-${day()}.csv`, ['日期', '复盘'], Object.entries(data.reviews).sort((a, b) => b[0].localeCompare(a[0])));
@@ -454,14 +456,13 @@ $$('[data-inbox-tabs] button').forEach(button => button.addEventListener('click'
 $('#inboxSearch').addEventListener('input', event => { inboxSearch = event.target.value.trim(); renderInbox(); });
 $('#inboxCategory').addEventListener('change', event => { inboxCategory = event.target.value; renderInbox(); });
 $('#captureTitle').addEventListener('paste', event => {
-  if (captureKind !== 'question') return;
   const pasted = event.clipboardData?.getData('text')?.trim() || '';
   const url = safeUrl(pasted);
   if (!url || !/^https?:\/\//i.test(pasted)) return;
   event.preventDefault();
-  $('#questionUrl').value = url;
-  if (!$('#captureTitle').value.trim()) $('#captureTitle').value = `待探索：${new URL(url).hostname.replace(/^www\./, '')}`;
-  toast('链接已放入独立字段，可继续修改问题标题');
+  $(captureKind === 'question' ? '#questionUrl' : '#lifeUrl').value = url;
+  if (!$('#captureTitle').value.trim()) $('#captureTitle').value = `${captureKind === 'question' ? '待探索' : '想体验'}：${new URL(url).hostname.replace(/^www\./, '')}`;
+  toast('链接已放入独立字段，可继续修改标题');
 });
 $$('[data-capture-tabs] button').forEach(button => button.addEventListener('click', () => setCaptureKind(button.dataset.kind)));
 $('[data-action="recommend"]').addEventListener('click', recommend);
@@ -478,7 +479,7 @@ $('#captureForm').addEventListener('submit', event => {
   const title = $('#captureTitle').value.trim();
   const createdAt = new Date().toISOString();
   if (captureKind === 'question') data.items.unshift({ id: uid(), kind: 'question', title, tag: $('#questionTag').value, url: safeUrl($('#questionUrl').value), state: 'inbox', branches: [], createdAt });
-  else data.items.unshift({ id: uid(), kind: 'life', title, category: $('#lifeCategory').value, time: $('#lifeTime').value, energy: $('#lifeEnergy').value, state: 'wishlist', branches: [], createdAt });
+  else data.items.unshift({ id: uid(), kind: 'life', title, category: $('#lifeCategory').value, time: $('#lifeTime').value, energy: $('#lifeEnergy').value, url: safeUrl($('#lifeUrl').value), state: 'wishlist', branches: [], createdAt });
   closeModals();
   save(captureKind === 'question' ? '已收进 Curiosity Inbox' : '已收进 Life Wishlist');
 });
@@ -500,6 +501,7 @@ $('#itemEditForm').addEventListener('submit', event => {
     item.category = $('#itemEditCategory').value;
     item.time = $('#itemEditTime').value;
     item.energy = $('#itemEditEnergy').value;
+    item.url = safeUrl($('#itemEditLifeUrl').value);
   } else {
     item.tag = $('#itemEditTag').value;
     item.url = safeUrl($('#itemEditUrl').value);
@@ -522,7 +524,7 @@ $('#lifeCompleteForm').addEventListener('submit', event => {
     item.reflections ||= [];
     item.reflections.push({ id: uid(), date: day(), text: newReflection });
   }
-  Object.assign(item, { state: 'done', memory: $('#lifeMemory').value.trim(), completedAt: $('#lifeCompletedAt').value, again: $('#lifeAgain').value, rating: $('#lifeRating').value, place: $('#lifePlace').value.trim(), updatedAt: new Date().toISOString() });
+  Object.assign(item, { state: 'done', memory: $('#lifeMemory').value.trim(), completedAt: $('#lifeCompletedAt').value, again: $('#lifeAgain').value, rating: $('#lifeRating').value, place: $('#lifePlace').value.trim(), url: safeUrl($('#lifeCompleteUrl').value), updatedAt: new Date().toISOString() });
   closeModals(); inboxKind = 'completed'; showView('inbox'); save(wasDone ? '已更新完成档案' : '已保存到完成档案');
 });
 
