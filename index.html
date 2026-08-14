@@ -12,6 +12,7 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="data-tools.css">
   <link rel="stylesheet" href="swipe.css">
+  <link rel="stylesheet" href="weekly.css">
   <title>探光 · 好奇心与生活灵感</title>
 </head>
 <body>
@@ -31,6 +32,11 @@
       </div>
 
       <section class="focus" id="focusCard"></section>
+
+      <section class="weekly-card card-soft">
+        <div class="weekly-head"><div><span class="kicker">提前放进生活里的期待</span><h2>本周小冒险 <small id="weeklyProgress">0/4</small></h2></div><button class="text-button" data-action="add-quest">＋ 添加</button></div>
+        <div id="weeklyQuestList" class="weekly-list"></div>
+      </section>
 
       <button class="unknown-entry" data-view="choose">
         <span class="unknown-icon">⌁</span>
@@ -84,6 +90,13 @@
         <textarea id="reviewText" placeholder="不必完整，留下真正有用的一句话就好。"></textarea>
         <button class="primary" data-action="save-review">保存今日复盘</button>
       </div>
+      <div class="section-title"><h2>本周留下什么</h2></div>
+      <form class="review card-soft" id="weeklyReviewForm">
+        <label for="weeklyAlive">这周什么真正让我活在现实里？</label><textarea id="weeklyAlive" placeholder="一件真实发生、让我有感觉的事。"></textarea>
+        <label for="weeklyContinue">哪个小冒险还值得继续期待？</label><textarea id="weeklyContinue" placeholder="没有也可以留空。"></textarea>
+        <label for="weeklyNext">下周想给自己留下什么？</label><textarea id="weeklyNext" placeholder="一个很小的未来锚点。"></textarea>
+        <button class="primary" type="submit">保存本周复盘</button>
+      </form>
       <div class="section-title"><h2>最近留下的光</h2></div>
       <div id="reviewHistory" class="cards"></div>
     </section>
@@ -115,6 +128,24 @@
     <div class="field"><label>今年最值得建设的问题（最多 1–3 个）</label><textarea id="annualInput" placeholder="怎样把好奇心转化为稳定行动？"></textarea></div>
     <div class="field"><label>本月唯一主要问题</label><textarea id="monthlyInput" placeholder="这个月用什么现实证据推进它？"></textarea></div>
     <button class="primary wide">保存方向</button>
+  </form></div>
+
+  <div class="modal" id="questModal"><form class="sheet" id="questForm">
+    <div class="sheet-head"><div><span class="kicker">最多四个现实锚点</span><h2>安排本周小冒险</h2></div><button type="button" class="close" data-close>×</button></div>
+    <div class="field"><label>从哪里开始？</label><select id="questSource"><option value="new">临时添加一个小冒险</option></select></div>
+    <div class="field"><label>本周想做</label><input id="questTitle" required placeholder="做一道新菜 / 联系一位朋友…"></div>
+    <div class="field"><label>为什么有点期待？</label><input id="questWhy" placeholder="想让周末更有生活感"></div>
+    <div class="row"><div class="field"><label>类型</label><select id="questCategory"><option value="mind">🧠 探索</option><option value="life">🌱 生活</option><option value="connection">❤️ 连接</option><option value="body">🧘 身体</option><option value="create">🛠 创造</option></select></div><div class="field"><label>准备什么时候做？</label><input id="questScheduled" placeholder="周六下午"></div></div>
+    <div class="field"><label>做到什么就算完成？</label><input id="questDoneWhen" required placeholder="做出来并吃掉，不追求完美"></div>
+    <button class="primary wide">放进本周</button>
+  </form></div>
+
+  <div class="modal" id="questCompleteModal"><form class="sheet" id="questCompleteForm">
+    <div class="sheet-head"><div><span class="kicker">完成不是打卡，是留下体验</span><h2>合上这次小冒险</h2></div><button type="button" class="close" data-close>×</button></div>
+    <input type="hidden" id="questCompleteId">
+    <div class="contract-question" id="questCompleteTitle"></div>
+    <div class="field"><label>我发现了什么？</label><textarea id="questDiscovery" required placeholder="一个感受、一个变化，或者下次想怎么做。"></textarea></div>
+    <button class="primary wide">完成并留下</button>
   </form></div>
 
   <div class="modal" id="itemEditModal"><form class="sheet" id="itemEditForm">

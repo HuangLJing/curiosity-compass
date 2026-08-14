@@ -30,7 +30,9 @@ function normalize(raw) {
   raw.plan ||= { annual: '', monthly: '' };
   raw.items ||= [];
   raw.reviews ||= {};
+  raw.weeklyReviews ||= {};
   raw.pendingPlans ||= [];
+  raw.quests ||= [];
   raw.items.forEach(item => { item.branches ||= []; item.kind ||= 'question'; item.state ||= item.kind === 'life' ? 'wishlist' : 'inbox'; item.createdAt ||= ''; if (item.kind === 'life') item.reflections ||= []; });
   return raw;
 }
@@ -42,6 +44,7 @@ let inboxSearch = '';
 let inboxCategory = '全部';
 let captureKind = 'question';
 let finishTarget = null;
+let questEditId = null;
 
 function save(message) {
   localStorage.setItem(KEY, JSON.stringify(data));
@@ -66,8 +69,66 @@ function render() {
   $('#annualQuestion').textContent = data.plan.annual || '还没有写下年度问题';
   $('#monthlyQuestion').textContent = data.plan.monthly || '先决定这个月最值得推进的一个问题';
   renderToday();
+  renderWeekly();
   renderInbox();
   renderReviews();
+}
+
+function weekKey(date = new Date()) {
+  const copy = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+  const weekday = (copy.getDay() + 6) % 7;
+  copy.setDate(copy.getDate() - weekday);
+  return `${copy.getFullYear()}-${String(copy.getMonth() + 1).padStart(2, '0')}-${String(copy.getDate()).padStart(2, '0')}`;
+}
+
+function weeklyQuests() {
+  const current = weekKey();
+  return data.quests.filter(quest => quest.week === current || quest.state !== 'done').slice(0, 4);
+}
+
+function questIcon(category) { return ({ mind: '🧠', life: '🌱', connection: '❤️', body: '🧘', create: '🛠' })[category] || '🌈'; }
+
+function renderWeekly() {
+  const quests = weeklyQuests();
+  const done = quests.filter(quest => quest.state === 'done').length;
+  $('#weeklyProgress').textContent = `${done}/${quests.length || 4}`;
+  $('#weeklyQuestList').innerHTML = quests.length ? quests.map(quest => `<div class="quest-row ${quest.state === 'done' ? 'quest-done' : ''}"><span class="quest-icon">${questIcon(quest.category)}</span><div class="quest-copy"><strong>${esc(quest.title)}</strong><small>${quest.scheduled ? esc(quest.scheduled) : '本周找一个合适的时刻'} · 完成：${esc(quest.doneWhen)}</small></div>${quest.state === 'done' ? '<span>✓</span>' : `<div class="quest-buttons"><button data-action="complete-quest" data-id="${quest.id}">完成</button><button class="quest-remove" data-action="remove-quest" data-id="${quest.id}">移出</button></div>`}</div>`).join('') : '<div class="weekly-empty">给未来的自己放一件值得期待的小事。可以从收集箱选择，也可以临时添加。</div>';
+  bindDynamic();
+}
+
+function openQuest(id = null) {
+  if (!id && weeklyQuests().length >= 4) return toast('本周最多四个小冒险');
+  $('#questForm').reset();
+  questEditId = id ? Number(id) : null;
+  const candidates = data.items.filter(item => (item.kind === 'life' && item.state === 'wishlist') || (item.kind === 'question' && ['inbox', 'shortlist'].includes(item.state)));
+  $('#questSource').innerHTML = '<option value="new">临时添加一个小冒险</option>' + candidates.map(item => `<option value="${item.id}">${item.kind === 'life' ? '🌱' : '🧠'} ${esc(item.title)}</option>`).join('');
+  const quest = data.quests.find(x => x.id === questEditId);
+  if (quest) {
+    $('#questSource').value = quest.sourceId ? String(quest.sourceId) : 'new';
+    $('#questTitle').value = quest.title;
+    $('#questWhy').value = quest.why || '';
+    $('#questCategory').value = quest.category || 'life';
+    $('#questScheduled').value = quest.scheduled || '';
+    $('#questDoneWhen').value = quest.doneWhen || '';
+  }
+  openModal('questModal');
+}
+
+function fillQuestFromSource() {
+  const item = data.items.find(x => x.id === Number($('#questSource').value));
+  if (!item) return;
+  $('#questTitle').value = item.title;
+  $('#questCategory').value = item.kind === 'life' ? 'life' : 'mind';
+  $('#questDoneWhen').value = item.kind === 'life' ? '真正体验一次，不追求完美' : '获得一个足够使用的答案，并停下来';
+}
+
+function openQuestComplete(id) {
+  const quest = data.quests.find(x => x.id === Number(id));
+  if (!quest) return;
+  $('#questCompleteForm').reset();
+  $('#questCompleteId').value = quest.id;
+  $('#questCompleteTitle').textContent = quest.title;
+  openModal('questCompleteModal');
 }
 
 function renderToday() {
@@ -98,13 +159,13 @@ function renderInbox() {
   } else if (inboxKind === 'life') {
     list = data.items.filter(item => item.kind === 'life' && item.state !== 'done');
   } else {
-    list = data.items.filter(item => item.state === 'done' || item.state === 'understood' || item.state === 'project');
+    list = [...data.items.filter(item => item.state === 'done' || item.state === 'understood' || item.state === 'project'), ...data.quests.filter(quest => quest.state === 'done' && !quest.sourceId).map(quest => ({ ...quest, kind: 'quest' }))];
     list.sort((a, b) => String(b.completedAt || b.updatedAt || '').localeCompare(String(a.completedAt || a.updatedAt || '')));
   }
-  const categoryValues = inboxKind === 'question' ? ['全部', '工作', '科普', '技术', '生活', '其他'] : inboxKind === 'life' ? ['全部', '探店', '美食', '书', '电影', '地点', '活动', '联系某人', '其他'] : ['全部', '好奇问题', '生活体验'];
+  const categoryValues = inboxKind === 'question' ? ['全部', '工作', '科普', '技术', '生活', '其他'] : inboxKind === 'life' ? ['全部', '探店', '美食', '书', '电影', '地点', '活动', '联系某人', '其他'] : ['全部', '好奇问题', '生活体验', '本周小冒险'];
   if (!categoryValues.includes(inboxCategory)) inboxCategory = '全部';
   $('#inboxCategory').innerHTML = categoryValues.map(value => `<option${value === inboxCategory ? ' selected' : ''}>${value}</option>`).join('');
-  const categoryOf = item => inboxKind === 'question' ? (item.tag || '其他') : inboxKind === 'life' ? (item.category || '其他') : (item.kind === 'life' ? '生活体验' : '好奇问题');
+  const categoryOf = item => inboxKind === 'question' ? (item.tag || '其他') : inboxKind === 'life' ? (item.category || '其他') : (item.kind === 'life' ? '生活体验' : item.kind === 'quest' ? '本周小冒险' : '好奇问题');
   if (inboxCategory !== '全部') list = list.filter(item => categoryOf(item) === inboxCategory);
   if (inboxSearch) {
     const term = inboxSearch.toLowerCase();
@@ -149,6 +210,7 @@ function swipeCard(item, content) {
 }
 
 function completedCard(item) {
+  if (item.kind === 'quest') return swipeCard(item, `<div class="card-head"><div class="card-title">${esc(item.title)}</div><span class="pill">${questIcon(item.category)} 本周小冒险</span></div><div class="card-meta">${esc(item.completedAt || '')}${item.scheduled ? ` · ${esc(item.scheduled)}` : ''}</div><div class="quest-memory">${esc(item.discovery || '完成了一次现实体验')}</div>`);
   if (item.kind === 'life') {
     const again = ({ yes: '愿意再次体验', no: '不打算再次体验', maybe: '也许会再次体验' })[item.again] || '';
     const reflections = (item.reflections || []).map(entry => `<div class="completed-memory"><span class="card-meta">${esc(entry.date || '')} · 新感悟</span><br>${esc(entry.text)}</div>`).join('');
@@ -159,6 +221,10 @@ function completedCard(item) {
 
 function renderReviews() {
   $('#reviewText').value = data.reviews[day()] || '';
+  const weekly = data.weeklyReviews[weekKey()] || {};
+  $('#weeklyAlive').value = weekly.alive || '';
+  $('#weeklyContinue').value = weekly.continue || '';
+  $('#weeklyNext').value = weekly.next || '';
   const entries = Object.entries(data.reviews).filter(([, text]) => text).sort((a, b) => b[0].localeCompare(a[0])).slice(0, 7);
   $('#reviewHistory').innerHTML = entries.length ? entries.map(([date, text]) => `<article class="card review-card"><time>${date}</time><p>${esc(text)}</p></article>`).join('') : '<div class="empty">完成一次探索或留下今日复盘后，光会落在这里。</div>';
 }
@@ -209,6 +275,7 @@ function recommend() {
   const selected = name => $(`[data-choice="${name}"] .active`)?.dataset.value;
   const time = selected('time'), energy = selected('energy'), intent = selected('intent');
   let recs = [];
+  const quest = weeklyQuests().find(x => x.state !== 'done');
   if (intent === 'main') {
     const active = data.items.find(x => x.kind === 'question' && x.state === 'active');
     if (active) recs.push({ meta: '推进当前探索', title: active.next || active.title, detail: active.doneWhen ? `结束条件：${active.doneWhen}` : '只做一个最小行动', action: 'today' });
@@ -231,6 +298,8 @@ function recommend() {
     const recovery = energy === 'low' ? ['喝水并离开屏幕走动十分钟', '洗澡或安静躺一会儿', '收拾眼前的一小块环境'] : energy === 'mid' ? ['散步二十分钟，不带研究任务', '听一张喜欢的专辑', '给一个长期关心的人发一句问候'] : ['做一段让身体舒展的运动', '去户外走一圈', '处理一个拖着的小生活事务'];
     recs = recovery.slice(0, time === '10' ? 1 : 3).map(title => ({ meta: '恢复不是浪费时间', title, detail: '完成后再决定是否需要探索。', action: 'none' }));
   }
+  if (quest && intent !== 'recover') recs.unshift({ meta: `${questIcon(quest.category)} 本周已经为自己准备`, title: quest.title, detail: `做到这里就停：${quest.doneWhen}`, action: 'quest', id: quest.id });
+  recs = recs.slice(0, 3);
   $('#recommendations').innerHTML = recs.map((rec, index) => `<article class="recommendation"><div class="rec-meta">选择 ${index + 1} · ${esc(rec.meta)}</div><h3>${esc(rec.title)}</h3><p>${esc(rec.detail)}</p>${rec.action !== 'none' ? `<button data-rec-action="${rec.action}" ${rec.id ? `data-id="${rec.id}"` : ''}>就做这个</button>` : ''}</article>`).join('');
   $$('[data-rec-action]').forEach(button => button.addEventListener('click', () => handleRecommendation(button.dataset.recAction, button.dataset.id)));
 }
@@ -242,6 +311,7 @@ function handleRecommendation(action, id) {
   if (action === 'contract') openContract(id);
   if (action === 'capture-life') openCapture('life');
   if (action === 'life') toast('已经选好了，去体验，不必继续比较');
+  if (action === 'quest') openQuestComplete(id);
 }
 
 function openLifeComplete(id) {
@@ -265,6 +335,8 @@ function openLifeComplete(id) {
 }
 
 function openItemEdit(id) {
+  const quest = data.quests.find(x => x.id === Number(id));
+  if (quest) return openQuest(id);
   const item = data.items.find(x => x.id === Number(id));
   if (!item) return;
   if (item.kind === 'life' && item.state === 'done') return openLifeComplete(id);
@@ -373,10 +445,21 @@ function mergeImport(payload) {
     else if (same) { item.id = uid(); report.conflicts++; }
     data.items.push(item); existingSimple.set(simpleKey(item), item); existingIds.set(String(item.id), item); report.added++;
   });
+  (incoming.quests || []).forEach(quest => {
+    const same = data.quests.find(x => x.title === quest.title && x.week === quest.week && x.createdAt === quest.createdAt);
+    if (same && contentKey(same) === contentKey(quest)) { report.skipped++; return; }
+    if (data.quests.some(x => String(x.id) === String(quest.id))) { quest.id = uid(); report.conflicts++; }
+    data.quests.push(quest); report.added++;
+  });
   Object.entries(incoming.reviews || {}).forEach(([date, text]) => {
     if (!data.reviews[date]) { data.reviews[date] = text; report.added++; }
     else if (data.reviews[date] === text) report.skipped++;
     else { data.reviews[`${date}-导入-${Date.now()}`] = text; report.conflicts++; report.added++; }
+  });
+  Object.entries(incoming.weeklyReviews || {}).forEach(([week, review]) => {
+    if (!data.weeklyReviews[week]) { data.weeklyReviews[week] = review; report.added++; }
+    else if (JSON.stringify(data.weeklyReviews[week]) === JSON.stringify(review)) report.skipped++;
+    else { data.weeklyReviews[`${week}-导入-${Date.now()}`] = review; report.conflicts++; report.added++; }
   });
   ['annual', 'monthly'].forEach(type => {
     const value = incoming.plan?.[type];
@@ -415,6 +498,9 @@ function undoImport() {
 function bindDynamic() {
   $$('[data-view]').forEach(button => { button.onclick = () => showView(button.dataset.view); });
   $$('[data-action="capture"]').forEach(button => { button.onclick = () => openCapture(); });
+  $$('[data-action="add-quest"]').forEach(button => { button.onclick = () => openQuest(); });
+  $$('[data-action="complete-quest"]').forEach(button => { button.onclick = () => openQuestComplete(button.dataset.id); });
+  $$('[data-action="remove-quest"]').forEach(button => { button.onclick = () => { data.quests = data.quests.filter(x => x.id !== Number(button.dataset.id)); save('已从本周移出'); }; });
   $$('[data-action="data-tools"]').forEach(button => { button.onclick = () => { if (data.lastImportReport) showImportReport(data.lastImportReport, false); openModal('dataToolsModal'); }; });
   $$('[data-action="edit-plan"]').forEach(button => { button.onclick = () => { $('#annualInput').value = data.plan.annual; $('#monthlyInput').value = data.plan.monthly; openModal('planModal'); }; });
   $$('[data-action="shortlist"]').forEach(button => { button.onclick = () => { const short = data.items.filter(x => x.kind === 'question' && x.state === 'shortlist'); if (short.length >= 3) return toast('本周候选最多三个'); const item = data.items.find(x => x.id === Number(button.dataset.id)); item.state = 'shortlist'; save('已加入本周候选'); }; });
@@ -422,7 +508,7 @@ function bindDynamic() {
   $$('[data-action="contract"], [data-action="edit-contract"]').forEach(button => { button.onclick = () => openContract(button.dataset.id); });
   $$('[data-action="finish"]').forEach(button => { button.onclick = () => { finishTarget = Number(button.dataset.id); $('#finishForm').reset(); $('#parkBranches').checked = true; openModal('finishModal'); }; });
   $$('[data-action="add-branch"]').forEach(button => { button.onclick = () => { const input = $('#branchInput'); const value = input.value.trim(); if (!value) return; data.items.find(x => x.id === Number(button.dataset.id)).branches.push(value); save('已停放，不切换当前探索'); }; });
-  $$('[data-action="delete"]').forEach(button => { button.onclick = () => { data.items = data.items.filter(x => x.id !== Number(button.dataset.id)); save('已删除'); }; });
+  $$('[data-action="delete"]').forEach(button => { button.onclick = () => { const id = Number(button.dataset.id); data.items = data.items.filter(x => x.id !== id); data.quests = data.quests.filter(x => x.id !== id); save('已删除'); }; });
   $$('[data-action="edit-item"]').forEach(button => { button.onclick = () => openItemEdit(button.dataset.id); });
   $$('[data-action="life-done"]').forEach(button => { button.onclick = () => openLifeComplete(button.dataset.id); });
   $$('[data-action="edit-life-complete"]').forEach(button => { button.onclick = () => openLifeComplete(button.dataset.id); });
@@ -455,6 +541,7 @@ $$('[data-choice] button').forEach(button => button.addEventListener('click', ()
 $$('[data-inbox-tabs] button').forEach(button => button.addEventListener('click', () => { inboxKind = button.dataset.kind; inboxCategory = '全部'; renderInbox(); }));
 $('#inboxSearch').addEventListener('input', event => { inboxSearch = event.target.value.trim(); renderInbox(); });
 $('#inboxCategory').addEventListener('change', event => { inboxCategory = event.target.value; renderInbox(); });
+$('#questSource').addEventListener('change', fillQuestFromSource);
 $('#captureTitle').addEventListener('paste', event => {
   const pasted = event.clipboardData?.getData('text')?.trim() || '';
   const url = safeUrl(pasted);
@@ -467,6 +554,7 @@ $('#captureTitle').addEventListener('paste', event => {
 $$('[data-capture-tabs] button').forEach(button => button.addEventListener('click', () => setCaptureKind(button.dataset.kind)));
 $('[data-action="recommend"]').addEventListener('click', recommend);
 $('[data-action="save-review"]').addEventListener('click', () => { data.reviews[day()] = $('#reviewText').value.trim(); save('今天的光已保存'); });
+$('#weeklyReviewForm').addEventListener('submit', event => { event.preventDefault(); data.weeklyReviews[weekKey()] = { alive: $('#weeklyAlive').value.trim(), continue: $('#weeklyContinue').value.trim(), next: $('#weeklyNext').value.trim(), updatedAt: new Date().toISOString() }; save('本周复盘已保存'); });
 $('[data-action="export-json"]').addEventListener('click', exportJson);
 $('[data-action="export-questions"]').addEventListener('click', exportQuestionsCsv);
 $('[data-action="export-life"]').addEventListener('click', exportLifeCsv);
@@ -490,6 +578,31 @@ $('#planForm').addEventListener('submit', event => {
   data.plan.monthly = $('#monthlyInput').value.trim();
   closeModals();
   save('方向已更新');
+});
+
+$('#questForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const sourceId = $('#questSource').value === 'new' ? null : Number($('#questSource').value);
+  const values = { title: $('#questTitle').value.trim(), why: $('#questWhy').value.trim(), category: $('#questCategory').value, scheduled: $('#questScheduled').value.trim(), doneWhen: $('#questDoneWhen').value.trim(), sourceId, updatedAt: new Date().toISOString() };
+  const existing = data.quests.find(x => x.id === questEditId);
+  if (existing) Object.assign(existing, values);
+  else data.quests.unshift({ id: uid(), ...values, week: weekKey(), state: 'planned', createdAt: new Date().toISOString() });
+  questEditId = null;
+  closeModals(); showView('today'); save(existing ? '小冒险已更新' : '已放进本周');
+});
+
+$('#questCompleteForm').addEventListener('submit', event => {
+  event.preventDefault();
+  const quest = data.quests.find(x => x.id === Number($('#questCompleteId').value));
+  if (!quest) return;
+  const discovery = $('#questDiscovery').value.trim();
+  Object.assign(quest, { state: 'done', discovery, completedAt: day(), updatedAt: new Date().toISOString() });
+  const source = data.items.find(x => x.id === quest.sourceId);
+  if (source?.kind === 'life') Object.assign(source, { state: 'done', memory: discovery, completedAt: day(), updatedAt: new Date().toISOString(), reflections: source.reflections || [] });
+  if (source?.kind === 'question') Object.assign(source, { state: 'understood', result: discovery, completedAt: day(), updatedAt: new Date().toISOString() });
+  const existingReview = data.reviews[day()] || '';
+  data.reviews[day()] = `${existingReview}${existingReview ? '\n\n' : ''}【本周小冒险：${quest.title}】\n${discovery}`;
+  closeModals(); save('小冒险已完成，体验已经留下');
 });
 
 $('#itemEditForm').addEventListener('submit', event => {
